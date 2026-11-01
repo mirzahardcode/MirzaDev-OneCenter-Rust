@@ -5,15 +5,16 @@ use tokio::runtime::Handle;
 
 use crate::{
     ApkItem, AppWindow, controller::Controller, navigation::Screen,
-    persistence::preferences::PreferencesStore, platform, runtime::TaskCancellation,
-    services::github,
+    persistence::preferences::PreferencesStore, platform, runtime::TaskRegistry, services::github,
 };
 
 pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
     let preferences = PreferencesStore::new()?;
     let initial_preferences = preferences.load()?;
     let controller = Arc::new(Controller::new(preferences, initial_preferences));
-    let cancellation = TaskCancellation::default();
+    // One registry for the whole application; every callback gets a clone of
+    // the same shared handle.
+    let tasks = TaskRegistry::default();
     let client = github::http_client()?;
 
     let window = AppWindow::new()?;
@@ -28,7 +29,7 @@ pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
 
     let navigate_controller = Arc::clone(&controller);
     let navigate_runtime = runtime.clone();
-    let navigate_cancellation = cancellation.clone();
+    let navigate_tasks = tasks.clone();
     let navigate_client = client.clone();
     let navigate_weak = window.as_weak();
     window.on_navigate(move |index| {
@@ -46,7 +47,7 @@ pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
             navigate_controller.load_apks(
                 &window,
                 &navigate_runtime,
-                &navigate_cancellation,
+                &navigate_tasks,
                 navigate_client.clone(),
                 false,
             );
@@ -55,7 +56,7 @@ pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
 
     let refresh_controller = Arc::clone(&controller);
     let refresh_runtime = runtime.clone();
-    let refresh_cancellation = cancellation.clone();
+    let refresh_tasks = tasks.clone();
     let refresh_client = client.clone();
     let refresh_weak = window.as_weak();
     window.on_refresh_apks(move || {
@@ -63,7 +64,7 @@ pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
             refresh_controller.load_apks(
                 &window,
                 &refresh_runtime,
-                &refresh_cancellation,
+                &refresh_tasks,
                 refresh_client.clone(),
                 true,
             );
@@ -101,7 +102,12 @@ pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
     });
 
     let result = window.run();
-    cancellation.cancel();
+    // The window is closed: abort whatever is still in flight. Only tasks are
+    // aborted here; the shared Tokio runtime is shut down by `main` afterwards.
+    let cancelled = tasks.cancel_all();
+    if cancelled > 0 {
+        log::debug!("Cancelled {cancelled} background task(s) on exit.");
+    }
     result?;
     Ok(())
 }
