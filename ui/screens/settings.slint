@@ -1,0 +1,91 @@
+import { Theme } from "../theme.slint";
+import { ScreenHeader } from "../components/screen-header.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export component SettingsScreen inherits Rectangle {
+    in property <int> glass-mode;
+    in property <string> message;
+    callback glass-mode-selected(mode: int);
+    background: transparent;
+
+    ScrollView {
+        width: root.width;
+        height: root.height;
+        VerticalLayout {
+            width: root.width - 14px;
+            spacing: 14px;
+            padding-bottom: 20px;
+
+            ScreenHeader {
+                overline: "EKSPERIMENTAL";
+                title: "Pengaturan";
+                subtitle: "Kustomisasi visual";
+            }
+
+            Rectangle {
+                x: 20px;
+                width: parent.width - 40px;
+                height: 176px;
+                background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                border-color: Theme.border;
+                border-width: 1px;
+                border-radius: 20px;
+
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 10px;
+                    Text { text: "Mode Permukaan Kaca"; color: Theme.foreground; font-size: 17px; font-weight: 700; }
+                    Text { text: "Pilih level efek transparansi dan blur."; color: Theme.muted; font-size: 13px; }
+                    HorizontalLayout {
+                        height: 44px;
+                        spacing: 4px;
+                        for mode[index] in ["Off", "Frosted", "Liquid"]: Rectangle {
+                            background: root.glass-mode == index ? #403650 : Theme.surface-raised;
+                            border-radius: 10px;
+                            TouchArea { clicked => { root.glass-mode-selected(index); } }
+                            Text {
+                                text: mode;
+                                color: root.glass-mode == index ? Theme.accent : Theme.muted;
+                                font-size: 13px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                x: 20px;
+                width: parent.width - 40px;
+                text: "Mode Liquid memerlukan dukungan blur dari renderer/platform.";
+                color: Theme.muted;
+                font-size: 11px;
+                wrap: word-wrap;
+            }
+
+            Rectangle {
+                x: 20px;
+                width: parent.width - 40px;
+                height: 152px;
+                background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                border-color: Theme.border;
+                border-width: 1px;
+                border-radius: 20px;
+                VerticalLayout {
+                    padding: 18px;
+                    spacing: 12px;
+                    Text { text: "Versi Library"; color: Theme.foreground; font-size: 17px; font-weight: 700; }
+                    Text { text: "Slint UI     1.18.1"; color: Theme.muted; font-size: 13px; }
+                    Text { text: "OneCenter Rust     0.1.0"; color: Theme.muted; font-size: 13px; }
+                }
+            }
+
+            if root.message != "": Text {
+                text: root.message;
+                color: Theme.error;
+                x: 20px;
+            }
+        }
+    }
+}

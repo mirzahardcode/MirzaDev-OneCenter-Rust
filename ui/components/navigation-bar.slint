@@ -1,0 +1,45 @@
+import { Theme } from "../theme.slint";
+
+export component NavigationBar inherits Rectangle {
+    in property <int> selected-index: 0;
+    callback selected(index: int);
+
+    height: 72px;
+    background: #252630;
+    border-color: Theme.border;
+    border-width: 1px;
+    border-radius: 28px;
+
+    HorizontalLayout {
+        padding: 6px;
+        spacing: 4px;
+
+        for tab[index] in ["Utama", "Aplikasi", "Bocoran", "Pengaturan"]: Rectangle {
+            background: root.selected-index == index ? #403650 : transparent;
+            border-radius: 22px;
+
+            TouchArea {
+                clicked => { root.selected(index); }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+
+                Text {
+                    text: ["⌂", "▣", "▤", "⚙"][index];
+                    color: root.selected-index == index ? Theme.accent : Theme.muted;
+                    font-size: 19px;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: tab;
+                    color: root.selected-index == index ? Theme.accent : Theme.muted;
+                    font-size: 11px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}

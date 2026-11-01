@@ -1,20 +1,14 @@
-// Prevent console window in addition to Slint window in Windows release builds when, e.g., starting the app via file manager. Ignored on other platforms.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::error::Error;
 
-slint::include_modules!();
+use mirzadev_onecenter::{app, logging, runtime::AsyncRuntime};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let ui = AppWindow::new()?;
-
-    let ui_handle = ui.as_weak();
-    ui.on_request_increase_value(move || {
-        let ui = ui_handle.unwrap();
-        ui.set_counter(ui.get_counter() + 1);
-    });
-
-    ui.run()?;
-
+    logging::init()?;
+    let runtime = AsyncRuntime::new()?;
+    let result = app::run(runtime.handle().clone());
+    runtime.shutdown();
+    result?;
     Ok(())
 }

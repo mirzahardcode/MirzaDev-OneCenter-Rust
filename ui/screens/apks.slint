@@ -1,0 +1,109 @@
+import { Theme } from "../theme.slint";
+import { ScreenHeader } from "../components/screen-header.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export struct ApkItem {
+    name: string,
+    version: string,
+    size: string,
+    download-url: string,
+}
+
+export component ApksScreen inherits Rectangle {
+    in property <int> glass-mode;
+    in property <[ApkItem]> apks;
+    in property <bool> is-loading;
+    in property <string> error-message;
+    callback refresh();
+    callback download(url: string);
+
+    background: transparent;
+
+    ScrollView {
+        width: root.width;
+        height: root.height;
+        VerticalLayout {
+            width: root.width - 14px;
+            spacing: 12px;
+            padding-bottom: 20px;
+
+            ScreenHeader {
+                overline: "DAFTAR VERSI CRACK";
+                title: "Aplikasi";
+                subtitle: "Aplikasi Crack yang tersedia";
+            }
+
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                height: 42px;
+                Text {
+                    text: root.apks.length > 0 ? "\{root.apks.length} Versi yg tersedia" : "Versi yg tersedia";
+                    color: Theme.foreground;
+                    font-size: 17px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+                Rectangle { }
+                Text {
+                    text: root.is-loading ? "Memuat..." : "Muat Ulang";
+                    color: Theme.accent;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                    TouchArea { clicked => { root.refresh(); } }
+                }
+            }
+
+            if root.error-message != "": Text {
+                text: root.error-message;
+                color: Theme.error;
+                font-size: 12px;
+                x: 20px;
+            }
+
+            if root.is-loading && root.apks.length == 0: Text {
+                text: "Memuat daftar aplikasi...";
+                color: Theme.muted;
+                font-size: 14px;
+                horizontal-alignment: center;
+            }
+
+            for apk in root.apks: Rectangle {
+                x: 20px;
+                width: parent.width - 40px;
+                height: 98px;
+                background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                border-color: Theme.border;
+                border-width: 1px;
+                border-radius: 20px;
+
+                HorizontalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+                    alignment: center;
+                    Text { text: "◉"; color: Theme.accent; font-size: 24px; }
+                    VerticalLayout {
+                        spacing: 5px;
+                        Text { text: apk.name; color: Theme.foreground; font-size: 15px; font-weight: 700; }
+                        Text { text: "\{apk.version} · \{apk.size}"; color: Theme.muted; font-size: 12px; }
+                        Text { text: "● Terverifikasi"; color: Theme.accent; font-size: 11px; }
+                    }
+                    Rectangle { }
+                    Text {
+                        text: "Unduh";
+                        color: Theme.accent;
+                        font-size: 13px;
+                        TouchArea { clicked => { root.download(apk.download-url); } }
+                    }
+                }
+            }
+
+            if !root.is-loading && root.apks.length == 0 && root.error-message == "": Text {
+                text: "Belum ada aplikasi yang tersedia.";
+                color: Theme.muted;
+                font-size: 14px;
+                horizontal-alignment: center;
+            }
+        }
+    }
+}

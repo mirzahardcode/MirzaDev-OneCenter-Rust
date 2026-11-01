@@ -1,0 +1,168 @@
+import { Theme } from "../theme.slint";
+import { ScreenHeader } from "../components/screen-header.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export component HomeScreen inherits Rectangle {
+    in property <int> glass-mode;
+    in property <string> date-label;
+    in property <string> information-message;
+    in property <string> action-message;
+    in property <int> apk-count;
+    callback open-apks();
+    callback open-private();
+    callback open-url(url: string);
+
+    background: transparent;
+
+    ScrollView {
+        width: root.width;
+        height: root.height;
+        VerticalLayout {
+            width: root.width - 14px;
+            spacing: 14px;
+            padding-bottom: 20px;
+
+            ScreenHeader {
+                overline: root.date-label;
+                title: "Selamat Datang, 👋";
+                subtitle: "Jangan Lupa Beribadah Mpruy😹.";
+            }
+
+            Rectangle {
+                height: 88px;
+                background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                border-color: Theme.border;
+                border-width: 1px;
+                border-radius: 20px;
+
+                HorizontalLayout {
+                    padding: 18px;
+                    spacing: 14px;
+                    alignment: center;
+
+                    Text {
+                        text: "◉";
+                        color: Theme.accent;
+                        font-size: 28px;
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 5px;
+                        Text { text: "MirzaDev Center"; color: Theme.foreground; font-size: 16px; font-weight: 700; }
+                        Text { text: "Pusat Aplikasi Bermanfaat Dan Bergiji."; color: Theme.muted; font-size: 12px; }
+                    }
+
+                    Rectangle { }
+                    Text { text: "Belum tersambung"; color: Theme.muted; font-size: 12px; }
+                }
+            }
+
+            VerticalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                spacing: 10px;
+                Text { text: "Informasi Terbaru"; color: Theme.foreground; font-size: 18px; font-weight: 700; }
+                Rectangle {
+                    background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                    border-color: Theme.border;
+                    border-width: 1px;
+                    border-radius: 20px;
+                    height: 112px;
+                    VerticalLayout {
+                        padding: 18px;
+                        spacing: 8px;
+                        Text { text: "Informasi"; color: Theme.foreground; font-size: 15px; font-weight: 700; }
+                        Text {
+                            text: root.information-message;
+                            color: Theme.muted;
+                            font-size: 13px;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+
+            VerticalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                spacing: 10px;
+                Text { text: "Contact Admin"; color: Theme.foreground; font-size: 18px; font-weight: 700; }
+
+                for contact[index] in [
+                    "GitHub Gua  ·  mirzahardcode",
+                    "Kontak Saya  ·  instagram: @mrrrzza",
+                    "Email Sumprot  ·  mrzsupport@gmail.com",
+                    "Telegram  ·  t.me/mirzaadev"
+                ]: Rectangle {
+                    background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                    border-color: Theme.border;
+                    border-width: 1px;
+                    border-radius: 16px;
+                    height: 54px;
+                    TouchArea {
+                        clicked => {
+                            root.open-url([
+                                "https://github.com/mirzahardcode",
+                                "https://instagram.com/mrrrzza",
+                                "mailto:mrzsupport@gmail.com",
+                                "https://t.me/mirzaadev"
+                            ][index]);
+                        }
+                    }
+                    Text {
+                        text: contact;
+                        color: Theme.foreground;
+                        font-size: 13px;
+                        vertical-alignment: center;
+                        x: 16px;
+                        width: parent.width - 32px;
+                    }
+                    if root.action-message != "": Text {
+                        text: root.action-message;
+                        color: Theme.error;
+                        font-size: 12px;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                spacing: 10px;
+                Text { text: "Akses Cepat"; color: Theme.foreground; font-size: 18px; font-weight: 700; }
+                HorizontalLayout {
+                    spacing: 12px;
+                    Rectangle {
+                        height: 104px;
+                        background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                        border-color: Theme.border;
+                        border-width: 1px;
+                        border-radius: 18px;
+                        TouchArea { clicked => { root.open-apks(); } }
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 7px;
+                            Text { text: "Aplikasi"; color: Theme.foreground; font-size: 16px; font-weight: 700; }
+                            Text { text: root.apk-count > 0 ? "\{root.apk-count} versi tersedia" : "Lihat aplikasi"; color: Theme.muted; font-size: 12px; }
+                        }
+                    }
+                    Rectangle {
+                        height: 104px;
+                        background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+                        border-color: Theme.border;
+                        border-width: 1px;
+                        border-radius: 18px;
+                        TouchArea { clicked => { root.open-private(); } }
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 7px;
+                            Text { text: "Bocoran"; color: Theme.foreground; font-size: 16px; font-weight: 700; }
+                            Text { text: "Akses Bocoran Soal"; color: Theme.muted; font-size: 12px; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

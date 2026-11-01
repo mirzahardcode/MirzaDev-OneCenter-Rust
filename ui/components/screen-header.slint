@@ -1,0 +1,36 @@
+import { Theme } from "../theme.slint";
+
+export component ScreenHeader inherits Rectangle {
+    in property <string> overline;
+    in property <string> title;
+    in property <string> subtitle;
+    background: transparent;
+    height: 118px;
+
+    VerticalLayout {
+        padding-left: 20px;
+        padding-right: 20px;
+        padding-top: 20px;
+        spacing: 7px;
+
+        if root.overline != "": Text {
+            text: root.overline;
+            color: Theme.muted;
+            font-size: 11px;
+            letter-spacing: 1.2px;
+        }
+
+        Text {
+            text: root.title;
+            color: Theme.foreground;
+            font-size: 30px;
+            font-weight: 700;
+        }
+
+        if root.subtitle != "": Text {
+            text: root.subtitle;
+            color: Theme.muted;
+            font-size: 14px;
+        }
+    }
+}

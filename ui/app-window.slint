@@ -1,18 +1,82 @@
-import { Button, VerticalBox } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { NavigationBar } from "components/navigation-bar.slint";
+import { HomeScreen } from "screens/home.slint";
+import { ApksScreen, ApkItem } from "screens/apks.slint";
+import { PrivateScreen } from "screens/private.slint";
+import { SettingsScreen } from "screens/settings.slint";
 
 export component AppWindow inherits Window {
-    in-out property <int> counter: 42;
-    callback request-increase-value();
-    VerticalBox {
-        Text {
-            text: "Counter: \{root.counter}";
+    title: "MirzaDev Center";
+    width: 860px;
+    height: 780px;
+    background: Theme.background;
+
+    in-out property <int> active-screen: 0;
+    in-out property <int> selected-index: 0;
+    in-out property <[ApkItem]> apks: [];
+    in-out property <bool> apks-loading: false;
+    in-out property <string> apks-error: "";
+    in-out property <string> information-message: "";
+    in-out property <string> home-action-message: "";
+    in-out property <string> private-unavailable-reason: "";
+    in-out property <int> glass-mode: 0;
+    in-out property <string> settings-message: "";
+
+    callback navigate(index: int);
+    callback refresh-apks();
+    callback download-apk(url: string);
+    callback open-external-url(url: string);
+    callback glass-mode-selected(mode: int);
+
+    VerticalLayout {
+        padding: 18px;
+        spacing: 14px;
+
+        Rectangle {
+            vertical-stretch: 1;
+            background: #15161d;
+            border-color: #272832;
+            border-width: 1px;
+            border-radius: 24px;
+            clip: true;
+
+            if root.active-screen == 0: HomeScreen {
+                glass-mode: root.glass-mode;
+                date-label: "MIRZADEV CENTER";
+                information-message: root.information-message;
+                action-message: root.home-action-message;
+                apk-count: root.apks.length;
+                open-apks => { root.navigate(1); }
+                open-private => { root.navigate(2); }
+                open-url(url) => { root.open-external-url(url); }
+            }
+
+            if root.active-screen == 1: ApksScreen {
+                glass-mode: root.glass-mode;
+                apks: root.apks;
+                is-loading: root.apks-loading;
+                error-message: root.apks-error;
+                refresh => { root.refresh-apks(); }
+                download(url) => { root.download-apk(url); }
+            }
+
+            if root.active-screen == 2: PrivateScreen {
+                glass-mode: root.glass-mode;
+                unavailable-reason: root.private-unavailable-reason;
+            }
+
+            if root.active-screen == 3: SettingsScreen {
+                glass-mode: root.glass-mode;
+                message: root.settings-message;
+                glass-mode-selected(mode) => { root.glass-mode-selected(mode); }
+            }
         }
 
-        Button {
-            text: "Increase value";
-            clicked => {
-                root.request-increase-value();
-            }
+        NavigationBar {
+            width: parent.width - 80px;
+            x: 40px;
+            selected-index: root.selected-index;
+            selected(index) => { root.navigate(index); }
         }
     }
 }

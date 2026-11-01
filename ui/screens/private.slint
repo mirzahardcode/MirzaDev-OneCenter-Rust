@@ -1,0 +1,40 @@
+import { Theme } from "../theme.slint";
+import { ScreenHeader } from "../components/screen-header.slint";
+
+export component PrivateScreen inherits Rectangle {
+    in property <int> glass-mode;
+    in property <string> unavailable-reason;
+    background: transparent;
+
+    VerticalLayout {
+        ScreenHeader {
+            overline: "AKSES TERBATAS";
+            title: "Bocoran";
+            subtitle: "Soal Ujian";
+        }
+
+        Rectangle {
+            x: 20px;
+            width: parent.width - 40px;
+            height: 184px;
+            background: root.glass-mode == 1 ? #252832 : root.glass-mode == 2 ? #20222b : Theme.surface;
+            border-color: Theme.border;
+            border-width: 1px;
+            border-radius: 20px;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                Text { text: "Akses privat belum tersedia"; color: Theme.foreground; font-size: 18px; font-weight: 700; }
+                Text {
+                    text: root.unavailable-reason;
+                    color: Theme.muted;
+                    font-size: 13px;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        Rectangle { }
+    }
+}
