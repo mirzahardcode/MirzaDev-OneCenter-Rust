@@ -378,7 +378,9 @@ mod tests {
         let path = directory.path().join("preferences.json");
         fs::write(&path, b"{ not valid json").unwrap();
 
-        let loaded = store.load().expect("startup must survive corrupt preferences");
+        let loaded = store
+            .load()
+            .expect("startup must survive corrupt preferences");
         assert_eq!(loaded.glass_mode, GlassMode::Off);
         assert!(!path.exists());
 

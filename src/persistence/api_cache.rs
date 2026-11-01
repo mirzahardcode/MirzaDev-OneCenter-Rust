@@ -281,9 +281,7 @@ mod tests {
 
     use serde::{Deserialize, Serialize};
 
-    use super::{
-        CacheError, CacheLookup, CachePolicy, PersistentJsonCache, millis_since_epoch,
-    };
+    use super::{CacheError, CacheLookup, CachePolicy, PersistentJsonCache, millis_since_epoch};
     use crate::persistence::preferences::test_support::{TestDir, file_names};
 
     #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -340,7 +338,11 @@ mod tests {
         let cache = cache_in(&directory, "apks.json");
         cache.save_at(&samples(), base_time()).unwrap();
 
-        let hit = expect_hit(cache.load_at(base_time() + Duration::from_secs(60)).unwrap());
+        let hit = expect_hit(
+            cache
+                .load_at(base_time() + Duration::from_secs(60))
+                .unwrap(),
+        );
         assert_eq!(hit.value, samples());
         assert_eq!(hit.age, Duration::from_secs(60));
         assert!(hit.is_fresh);
@@ -380,10 +382,8 @@ mod tests {
         let policy = CachePolicy {
             ttl: Duration::from_secs(10),
         };
-        let cache = PersistentJsonCache::<Vec<Sample>>::new(
-            directory.path().join("apks.json"),
-            policy,
-        );
+        let cache =
+            PersistentJsonCache::<Vec<Sample>>::new(directory.path().join("apks.json"), policy);
         cache.save_at(&samples(), base_time()).unwrap();
 
         let just_inside = base_time() + Duration::from_millis(9_999);
@@ -429,10 +429,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(matches!(
-            cache.load().unwrap(),
-            CacheLookup::Corrupted(_)
-        ));
+        assert!(matches!(cache.load().unwrap(), CacheLookup::Corrupted(_)));
     }
 
     #[test]
@@ -462,11 +459,7 @@ mod tests {
         let directory = TestDir::new("cache-pre-epoch");
         let cache = cache_in(&directory, "apks.json");
         cache.save_at(&samples(), base_time()).unwrap();
-        let hit = expect_hit(
-            cache
-                .load_at(UNIX_EPOCH - Duration::from_secs(1))
-                .unwrap(),
-        );
+        let hit = expect_hit(cache.load_at(UNIX_EPOCH - Duration::from_secs(1)).unwrap());
         assert!(!hit.is_fresh);
     }
 
@@ -481,7 +474,9 @@ mod tests {
         assert!(matches!(cache.load().unwrap(), CacheLookup::Missing));
         assert!(file_names(directory.path()).is_empty());
 
-        cache.clear().expect("clearing a missing cache is not an error");
+        cache
+            .clear()
+            .expect("clearing a missing cache is not an error");
     }
 
     #[test]

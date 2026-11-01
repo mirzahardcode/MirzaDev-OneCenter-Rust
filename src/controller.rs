@@ -228,9 +228,7 @@ fn apk_item(apk: &ApkRelease) -> ApkItem {
 mod tests {
     use std::time::{Duration, Instant};
 
-    use super::{
-        ApkUpdate, Controller, commit_apk_result, is_within_ttl, lock_app_state,
-    };
+    use super::{ApkUpdate, Controller, commit_apk_result, is_within_ttl, lock_app_state};
     use crate::{
         domain::models::ApkRelease,
         navigation::Screen,
@@ -275,7 +273,10 @@ mod tests {
         let controller = new_controller(&directory);
 
         assert_eq!(controller.update_glass_mode(2), Ok(GlassMode::Liquid));
-        assert_eq!(controller.lock_state().settings.glass_mode, GlassMode::Liquid);
+        assert_eq!(
+            controller.lock_state().settings.glass_mode,
+            GlassMode::Liquid
+        );
 
         let reloaded = PreferencesStore::with_path(directory.path().join("preferences.json"))
             .load()
@@ -395,7 +396,9 @@ mod tests {
 
         let first = tasks.try_begin(TaskKind::ApkFetch).unwrap();
         let first_guard = tasks.guard(first);
-        assert!(commit_apk_result(&controller.state, &first_guard, Ok(vec![apk("kept")])).is_some());
+        assert!(
+            commit_apk_result(&controller.state, &first_guard, Ok(vec![apk("kept")])).is_some()
+        );
         drop(first_guard);
 
         controller.set_apks_loading(true);

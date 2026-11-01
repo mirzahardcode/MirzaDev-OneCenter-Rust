@@ -61,6 +61,8 @@ struct TaskSlot {
     /// `None` while the ticket is reserved but the spawned task has not been
     /// attached yet.
     abort: Option<AbortHandle>,
+    /// Only the first guard for a ticket may finish the registry entry.
+    guard_claimed: bool,
 }
 
 type SlotMap = HashMap<TaskKind, TaskSlot>;
@@ -96,7 +98,14 @@ impl TaskRegistry {
     /// `AbortHandle` (if already attached) is aborted.
     pub fn begin(&self, kind: TaskKind) -> TaskTicket {
         let id = self.next_id();
-        let previous = self.lock_slots().insert(kind, TaskSlot { id, abort: None });
+        let previous = self.lock_slots().insert(
+            kind,
+            TaskSlot {
+                id,
+                abort: None,
+                guard_claimed: false,
+            },
+        );
         if let Some(handle) = previous.and_then(|slot| slot.abort) {
             handle.abort();
         }
@@ -113,26 +122,33 @@ impl TaskRegistry {
         if slots.contains_key(&kind) {
             return None;
         }
-        slots.insert(kind, TaskSlot { id, abort: None });
+        slots.insert(
+            kind,
+            TaskSlot {
+                id,
+                abort: None,
+                guard_claimed: false,
+            },
+        );
         Some(TaskTicket { kind, id })
     }
 
     /// Stores the abort handle of the task spawned for `ticket`.
     ///
-    /// If the ticket is no longer current (it was replaced, cancelled or
-    /// finished while the task was being spawned) the task is aborted
-    /// immediately and `false` is returned.
+    /// If the ticket is no longer current, or already has an attached task,
+    /// the new task is aborted immediately and `false` is returned. The first
+    /// attached handle remains registered.
     pub fn attach(&self, ticket: TaskTicket, handle: AbortHandle) -> bool {
         let rejected = {
             let mut slots = self.lock_slots();
             match slots.get_mut(&ticket.kind) {
                 Some(slot) if slot.id == ticket.id => {
-                    if slot.abort.replace(handle).is_some() {
-                        log::warn!(
-                            "Task {ticket:?} already had an abort handle; the earlier handle was replaced."
-                        );
+                    if slot.abort.is_some() {
+                        Some(handle)
+                    } else {
+                        slot.abort = Some(handle);
+                        None
                     }
-                    None
                 }
                 _ => Some(handle),
             }
@@ -205,10 +221,25 @@ impl TaskRegistry {
     }
 
     /// Creates an RAII guard that finishes `ticket` when dropped.
+    ///
+    /// Only the first guard created for the current ticket owns it. Further
+    /// guards are inert, so dropping a duplicate cannot finish the owner's
+    /// active registry entry.
     pub fn guard(&self, ticket: TaskTicket) -> TaskGuard {
+        let owns_ticket = {
+            let mut slots = self.lock_slots();
+            match slots.get_mut(&ticket.kind) {
+                Some(slot) if slot.id == ticket.id && !slot.guard_claimed => {
+                    slot.guard_claimed = true;
+                    true
+                }
+                _ => false,
+            }
+        };
         TaskGuard {
             registry: self.clone(),
             ticket,
+            owns_ticket,
         }
     }
 
@@ -234,10 +265,11 @@ impl TaskRegistry {
 /// panic, failed event-loop delivery, runtime shutdown) the registry entry is
 /// released, but only if the ticket is still the current one.
 #[derive(Debug)]
-#[must_use = "dropping a TaskGuard immediately finishes its ticket"]
+#[must_use = "dropping an owning TaskGuard immediately finishes its ticket"]
 pub struct TaskGuard {
     registry: TaskRegistry,
     ticket: TaskTicket,
+    owns_ticket: bool,
 }
 
 impl TaskGuard {
@@ -245,15 +277,17 @@ impl TaskGuard {
         self.ticket
     }
 
-    /// `true` while no newer request has replaced this one.
+    /// `true` only for the owning guard while its ticket is current.
     pub fn is_current(&self) -> bool {
-        self.registry.is_current(self.ticket)
+        self.owns_ticket && self.registry.is_current(self.ticket)
     }
 }
 
 impl Drop for TaskGuard {
     fn drop(&mut self) {
-        self.registry.finish(self.ticket);
+        if self.owns_ticket {
+            self.registry.finish(self.ticket);
+        }
     }
 }
 
@@ -311,7 +345,9 @@ mod tests {
     }
 
     fn settle(runtime: &Runtime) {
-        runtime.block_on(tokio::time::sleep(Duration::from_millis(25)));
+        runtime.block_on(async {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        });
     }
 
     fn assert_cancelled(runtime: &Runtime, task: JoinHandle<()>) {
@@ -361,7 +397,9 @@ mod tests {
     #[test]
     fn try_begin_rejects_duplicates_until_the_ticket_is_finished() {
         let registry = TaskRegistry::default();
-        let first = registry.try_begin(TaskKind::ApkFetch).expect("first request");
+        let first = registry
+            .try_begin(TaskKind::ApkFetch)
+            .expect("first request");
         assert!(registry.try_begin(TaskKind::ApkFetch).is_none());
         assert!(registry.try_begin(TaskKind::HomeFetch).is_some());
 
@@ -425,6 +463,25 @@ mod tests {
         let task = pending_task(&runtime);
         assert!(!registry.attach(ticket, task.abort_handle()));
         assert_cancelled(&runtime, task);
+    }
+
+    #[test]
+    fn duplicate_attachment_rejects_and_aborts_only_the_new_task() {
+        let runtime = test_runtime();
+        let registry = TaskRegistry::default();
+        let ticket = registry.begin(TaskKind::ApkFetch);
+
+        let first_task = pending_task(&runtime);
+        assert!(registry.attach(ticket, first_task.abort_handle()));
+
+        let second_task = pending_task(&runtime);
+        assert!(!registry.attach(ticket, second_task.abort_handle()));
+        assert_cancelled(&runtime, second_task);
+        assert!(registry.is_current(ticket));
+
+        assert!(registry.cancel(TaskKind::ApkFetch));
+        assert_cancelled(&runtime, first_task);
+        assert!(!registry.is_active(TaskKind::ApkFetch));
     }
 
     #[test]
@@ -515,6 +572,37 @@ mod tests {
         assert_eq!(second_guard.ticket(), second);
         assert!(second_guard.is_current());
         drop(second_guard);
+        assert!(!registry.is_active(TaskKind::ApkFetch));
+    }
+
+    #[test]
+    fn duplicate_guard_is_inert_and_cannot_finish_the_owner_ticket() {
+        let runtime = test_runtime();
+        let registry = TaskRegistry::default();
+        let ticket = registry.try_begin(TaskKind::ApkFetch).expect("ticket");
+
+        let owner_guard = registry.guard(ticket);
+        let duplicate_guard = registry.guard(ticket);
+        assert!(owner_guard.is_current());
+        assert!(!duplicate_guard.is_current());
+
+        let owner_task = runtime.spawn(async move {
+            let _guard = owner_guard;
+            std::future::pending::<()>().await;
+        });
+        assert!(registry.attach(ticket, owner_task.abort_handle()));
+
+        let duplicate_task = runtime.spawn(async move {
+            let _guard = duplicate_guard;
+            std::future::pending::<()>().await;
+        });
+        assert!(!registry.attach(ticket, duplicate_task.abort_handle()));
+        assert_cancelled(&runtime, duplicate_task);
+        assert!(registry.is_current(ticket));
+        assert!(registry.is_active(TaskKind::ApkFetch));
+
+        assert!(registry.cancel(TaskKind::ApkFetch));
+        assert_cancelled(&runtime, owner_task);
         assert!(!registry.is_active(TaskKind::ApkFetch));
     }
 
