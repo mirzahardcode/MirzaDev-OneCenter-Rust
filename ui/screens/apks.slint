@@ -13,7 +13,9 @@ export component ApksScreen inherits Rectangle {
     in property <int> glass-mode;
     in property <[ApkItem]> apks;
     in property <bool> is-loading;
+    in property <bool> is-checking-cache;
     in property <string> error-message;
+    in property <string> data-status;
     callback refresh();
     callback download(url: string);
 
@@ -61,8 +63,22 @@ export component ApksScreen inherits Rectangle {
                 x: 20px;
             }
 
+            if root.data-status != "": Text {
+                text: root.data-status;
+                color: Theme.accent;
+                font-size: 12px;
+                x: 20px;
+            }
+
             if root.is-loading && root.apks.length == 0: Text {
                 text: "Memuat daftar aplikasi...";
+                color: Theme.muted;
+                font-size: 14px;
+                horizontal-alignment: center;
+            }
+
+            if root.is-checking-cache && !root.is-loading && root.apks.length == 0: Text {
+                text: "Memeriksa cache lokal...";
                 color: Theme.muted;
                 font-size: 14px;
                 horizontal-alignment: center;
@@ -98,7 +114,7 @@ export component ApksScreen inherits Rectangle {
                 }
             }
 
-            if !root.is-loading && root.apks.length == 0 && root.error-message == "": Text {
+            if !root.is-loading && !root.is-checking-cache && root.apks.length == 0 && root.error-message == "": Text {
                 text: "Belum ada aplikasi yang tersedia.";
                 color: Theme.muted;
                 font-size: 14px;

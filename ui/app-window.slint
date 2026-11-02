@@ -15,7 +15,9 @@ export component AppWindow inherits Window {
     in-out property <int> selected-index: 0;
     in-out property <[ApkItem]> apks: [];
     in-out property <bool> apks-loading: false;
+    in-out property <bool> apks-checking-cache: false;
     in-out property <string> apks-error: "";
+    in-out property <string> apks-status: "";
     in-out property <string> information-message: "";
     in-out property <string> home-action-message: "";
     in-out property <string> private-unavailable-reason: "";
@@ -55,7 +57,9 @@ export component AppWindow inherits Window {
                 glass-mode: root.glass-mode;
                 apks: root.apks;
                 is-loading: root.apks-loading;
+                is-checking-cache: root.apks-checking-cache;
                 error-message: root.apks-error;
+                data-status: root.apks-status;
                 refresh => { root.refresh-apks(); }
                 download(url) => { root.download-apk(url); }
             }

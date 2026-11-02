@@ -1,17 +1,33 @@
 use std::{error::Error, sync::Arc};
 
+use directories::ProjectDirs;
 use slint::{ComponentHandle, ModelRc, VecModel};
 use tokio::runtime::Handle;
 
 use crate::{
-    ApkItem, AppWindow, controller::Controller, navigation::Screen,
-    persistence::preferences::PreferencesStore, platform, runtime::TaskRegistry, services::github,
+    ApkItem, AppWindow,
+    controller::Controller,
+    navigation::Screen,
+    persistence::{
+        api_cache::{CachePolicy, PersistentJsonCache},
+        preferences::PreferencesStore,
+    },
+    platform,
+    runtime::TaskRegistry,
+    services::github,
 };
 
 pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
     let preferences = PreferencesStore::new()?;
     let initial_preferences = preferences.load()?;
-    let controller = Arc::new(Controller::new(preferences, initial_preferences));
+    let apk_cache = ProjectDirs::from("com", "MirzaDev", "OneCenter").map(|dirs| {
+        PersistentJsonCache::new(dirs.cache_dir().join("apks.json"), CachePolicy::STANDARD)
+    });
+    if apk_cache.is_none() {
+        log::warn!("Application cache directory is unavailable; APK caching is disabled.");
+    }
+    let controller =
+        Arc::new(Controller::new(preferences, initial_preferences).with_apk_cache(apk_cache));
     // One registry for the whole application; every callback gets a clone of
     // the same shared handle.
     let tasks = TaskRegistry::default();
@@ -105,6 +121,7 @@ pub fn run(runtime: Handle) -> Result<(), Box<dyn Error>> {
     // The window is closed: abort whatever is still in flight. Only tasks are
     // aborted here; the shared Tokio runtime is shut down by `main` afterwards.
     let cancelled = tasks.cancel_all();
+    controller.reset_apks_request_state();
     if cancelled > 0 {
         log::debug!("Cancelled {cancelled} background task(s) on exit.");
     }
